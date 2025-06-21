@@ -46,28 +46,32 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Processing MRI for patient: ${patientId}`)
+    console.log(`File details: ${file.name}, ${file.type}, ${file.size} bytes`)
 
-    // Convert file to base64 for API call
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    // Create a new FormData object for the API call
+    const apiFormData = new FormData()
+    
+    // Pass the file directly to maintain proper encoding
+    apiFormData.append('file', file, file.name)
 
-    // Call the MRI detection API
+    console.log('Sending request to MRI detection API...')
+
+    // Call the MRI detection API with form-data (not JSON)
     const apiResponse = await fetch('https://arittrabag-mri-h4b.hf.space/detect', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image: `data:${file.type};base64,${base64}`
-      }),
+      body: apiFormData, // Send as FormData, not JSON
     })
 
+    console.log(`API Response status: ${apiResponse.status}`)
+
     if (!apiResponse.ok) {
+      const errorText = await apiResponse.text()
+      console.error(`API Error: ${apiResponse.status} - ${errorText}`)
       throw new Error(`API call failed: ${apiResponse.status}`)
     }
 
     const apiResult = await apiResponse.json()
-    console.log('API Response:', apiResult)
+    console.log('API Response:', JSON.stringify(apiResult, null, 2))
 
     // Check if it's a valid MRI
     if (!apiResult.isMRI) {
@@ -85,6 +89,8 @@ Deno.serve(async (req) => {
     const predictedClass = dementiaAnalysis?.predicted_class || null
     const confidence = dementiaAnalysis?.confidence || null
     const insights = dementiaAnalysis?.insights || null
+
+    console.log(`Extracted data - Class: ${predictedClass}, Confidence: ${confidence}`)
 
     // Save the visit to the database
     const { data: visit, error: visitError } = await supabase
