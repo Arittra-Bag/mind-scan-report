@@ -84,10 +84,17 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Extract data from the API response
+    // Extract data from the API response - using correct field names
     const { dementiaAnalysis } = apiResult
-    const predictedClass = dementiaAnalysis?.predicted_class || null
-    const confidence = dementiaAnalysis?.confidence || null
+    const predictedClass = dementiaAnalysis?.predictedClass || null
+    
+    // Calculate confidence as the maximum value from the confidences object
+    let confidence = null
+    if (dementiaAnalysis?.confidences) {
+      const confidenceValues = Object.values(dementiaAnalysis.confidences) as number[]
+      confidence = Math.max(...confidenceValues)
+    }
+    
     const insights = dementiaAnalysis?.insights || null
 
     console.log(`Extracted data - Class: ${predictedClass}, Confidence: ${confidence}`)

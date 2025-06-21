@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Upload, Calendar, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Upload, Calendar, TrendingUp, Download } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Tables } from '@/integrations/supabase/types'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -64,10 +64,11 @@ const PatientProfile = () => {
 
   const getStageColor = (stage: string | null) => {
     switch (stage) {
-      case 'Normal': return 'bg-green-100 text-green-800'
-      case 'Very_Mild_Dementia': return 'bg-yellow-100 text-yellow-800'
-      case 'Mild_Dementia': return 'bg-orange-100 text-orange-800'
-      case 'Moderate_Dementia': return 'bg-red-100 text-red-800'
+      case 'Normal': 
+      case 'Non Demented': return 'bg-green-100 text-green-800'
+      case 'Very Mild Dementia': return 'bg-yellow-100 text-yellow-800'
+      case 'Mild Dementia': return 'bg-orange-100 text-orange-800'
+      case 'Moderate Dementia': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -75,6 +76,28 @@ const PatientProfile = () => {
   const formatStage = (stage: string | null) => {
     if (!stage) return 'Processing...'
     return stage.replace(/_/g, ' ')
+  }
+
+  const downloadReport = (visit: Visit) => {
+    const reportData = {
+      visitId: visit.id,
+      patientId: visit.patient_id,
+      date: visit.created_at,
+      predictedClass: visit.predicted_class,
+      confidence: visit.confidence,
+      insights: visit.insights,
+      fullReport: visit.raw_report
+    }
+    
+    const dataStr = JSON.stringify(reportData, null, 2)
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
+    
+    const exportFileDefaultName = `mri-report-${new Date(visit.created_at!).toISOString().split('T')[0]}.json`
+    
+    const linkElement = document.createElement('a')
+    linkElement.setAttribute('href', dataUri)
+    linkElement.setAttribute('download', exportFileDefaultName)
+    linkElement.click()
   }
 
   // Prepare chart data
@@ -268,32 +291,31 @@ const PatientProfile = () => {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {visits.map((visit) => (
-                  <div key={visit.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-medium">
-                          {new Date(visit.created_at!).toLocaleDateString()} at{' '}
-                          {new Date(visit.created_at!).toLocaleTimeString()}
-                        </p>
-                        <Badge className={getStageColor(visit.predicted_class)}>
-                          {formatStage(visit.predicted_class)}
-                        </Badge>
+                  <div key={visit.id} className="flex items-center justify-between border rounded-lg p-3 hover:bg-gray-50">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-sm font-medium">
+                        {new Date(visit.created_at!).toLocaleDateString()}
                       </div>
+                      <Badge className={getStageColor(visit.predicted_class)}>
+                        {formatStage(visit.predicted_class)}
+                      </Badge>
                       {visit.confidence && (
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">Confidence</p>
-                          <p className="font-semibold">{(visit.confidence * 100).toFixed(1)}%</p>
+                        <div className="text-sm text-gray-600">
+                          {(visit.confidence * 100).toFixed(1)}% confidence
                         </div>
                       )}
                     </div>
-                    {visit.insights && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Insights:</p>
-                        <p className="text-sm text-gray-600">{visit.insights}</p>
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadReport(visit)}
+                      className="flex items-center space-x-1"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download</span>
+                    </Button>
                   </div>
                 ))}
               </div>
