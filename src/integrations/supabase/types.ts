@@ -9,7 +9,98 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      patients: {
+        Row: {
+          created_at: string | null
+          date_of_birth: string
+          id: string
+          medical_record_number: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_of_birth: string
+          id?: string
+          medical_record_number?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date_of_birth?: string
+          id?: string
+          medical_record_number?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          confidence: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          insights: string | null
+          patient_id: string
+          predicted_class: Database["public"]["Enums"]["dementia_stage"] | null
+          raw_report: Json
+          timestamp: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          insights?: string | null
+          patient_id: string
+          predicted_class?: Database["public"]["Enums"]["dementia_stage"] | null
+          raw_report: Json
+          timestamp?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          insights?: string | null
+          patient_id?: string
+          predicted_class?: Database["public"]["Enums"]["dementia_stage"] | null
+          raw_report?: Json
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +109,11 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      dementia_stage:
+        | "Normal"
+        | "Very_Mild_Dementia"
+        | "Mild_Dementia"
+        | "Moderate_Dementia"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +228,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      dementia_stage: [
+        "Normal",
+        "Very_Mild_Dementia",
+        "Mild_Dementia",
+        "Moderate_Dementia",
+      ],
+    },
   },
 } as const
