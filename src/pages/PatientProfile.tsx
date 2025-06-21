@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,6 +9,8 @@ import { toast } from '@/hooks/use-toast'
 import { Tables } from '@/integrations/supabase/types'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import MriUploadForm from '@/components/MriUploadForm'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 type Patient = Tables<'patients'>
 type Visit = Tables<'visits'>
@@ -64,11 +65,10 @@ const PatientProfile = () => {
 
   const getStageColor = (stage: string | null) => {
     switch (stage) {
-      case 'Normal': 
-      case 'Non Demented': return 'bg-green-100 text-green-800'
-      case 'Very Mild Dementia': return 'bg-yellow-100 text-yellow-800'
-      case 'Mild Dementia': return 'bg-orange-100 text-orange-800'
-      case 'Moderate Dementia': return 'bg-red-100 text-red-800'
+      case 'Normal': return 'bg-green-100 text-green-800'
+      case 'Very_Mild_Dementia': return 'bg-yellow-100 text-yellow-800'
+      case 'Mild_Dementia': return 'bg-orange-100 text-orange-800'
+      case 'Moderate_Dementia': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -78,26 +78,123 @@ const PatientProfile = () => {
     return stage.replace(/_/g, ' ')
   }
 
-  const downloadReport = (visit: Visit) => {
-    const reportData = {
-      visitId: visit.id,
-      patientId: visit.patient_id,
-      date: visit.created_at,
-      predictedClass: visit.predicted_class,
-      confidence: visit.confidence,
-      insights: visit.insights,
-      fullReport: visit.raw_report
+  const downloadReport = async (visit: Visit) => {
+    try {
+      // Create a container for the report
+      const reportContainer = document.createElement('div')
+      reportContainer.style.padding = '20px'
+      reportContainer.style.fontFamily = 'Arial, sans-serif'
+      reportContainer.style.position = 'absolute'
+      reportContainer.style.left = '-9999px'
+      reportContainer.style.top = '-9999px'
+      reportContainer.style.width = '550px' // Set fixed width for A4 portrait format
+      document.body.appendChild(reportContainer)
+      
+      // Format date properly
+      const scanDate = new Date(visit.created_at!).toLocaleDateString()
+      const confidencePercent = visit.confidence ? (visit.confidence * 100).toFixed(1) + '%' : 'N/A'
+      const dementialClass = formatStage(visit.predicted_class)
+      
+      // Create the report content with HTML
+      reportContainer.innerHTML = `
+        <div style="text-align:center; margin-bottom:20px;">
+          <h1 style="margin-bottom:5px;">Mind Scan Report</h1>
+          <h2 style="margin-top:0; color:#555; font-weight:normal;">MRI Analysis Results</h2>
+        </div>
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+          <h3 style="margin-bottom:10px;">Patient Information</h3>
+          <p><strong>Name:</strong> ${patient.name}</p>
+          <p><strong>DOB:</strong> ${new Date(patient.date_of_birth).toLocaleDateString()}</p>
+          ${patient.medical_record_number ? `<p><strong>MRN:</strong> ${patient.medical_record_number}</p>` : ''}
+        </div>
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+          <h3 style="margin-bottom:10px;">Scan Details</h3>
+          <p><strong>Scan Date:</strong> ${scanDate}</p>
+          <p><strong>Diagnosis:</strong> <span style="font-weight:bold; color:${getDiagnosisColor(visit.predicted_class)};">${dementialClass}</span></p>
+          <p><strong>Confidence:</strong> ${confidencePercent}</p>
+        </div>
+      `
+      
+      // Add insights if available
+      if (visit.insights) {
+        reportContainer.innerHTML += `
+          <div style="margin-bottom:20px;">
+            <h3 style="margin-bottom:10px;">Analysis Insights</h3>
+            <div style="white-space:pre-wrap; padding:10px; background-color:#f9f9f9; border-radius:5px; font-size:0.9em;">
+              ${visit.insights.replace(/\n/g, '<br>')}
+            </div>
+          </div>
+        `
+      }
+      
+      // Add footer
+      reportContainer.innerHTML += `
+        <div style="margin-top:30px; text-align:center; font-size:0.8em; color:#777;">
+          <p>This report was generated on ${new Date().toLocaleString()}.</p>
+          <p>Mind Scan Analysis Platform. All rights reserved.</p>
+        </div>
+      `
+      
+      // Convert to PDF with html2canvas and jsPDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const canvas = await html2canvas(reportContainer, {
+        scale: 2,
+        logging: false,
+        useCORS: true
+      })
+      
+      // Add the image to the PDF
+      const imgData = canvas.toDataURL('image/png')
+      const imgProps = pdf.getImageProperties(imgData)
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      
+      // If content is longer than one page, handle multiple pages
+      if (pdfHeight > 297) {
+        let remainingHeight = pdfHeight
+        let position = -297
+        
+        while (remainingHeight > 0) {
+          pdf.addPage()
+          position -= 297
+          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
+          remainingHeight -= 297
+        }
+      }
+      
+      // Create filename and save
+      const filename = `mri-report-${patient.name.replace(/\s+/g, '-')}-${new Date(visit.created_at!).toISOString().split('T')[0]}.pdf`
+      pdf.save(filename)
+      
+      // Clean up
+      document.body.removeChild(reportContainer)
+      
+      toast({
+        title: "Success",
+        description: "Report downloaded successfully",
+      })
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      })
     }
-    
-    const dataStr = JSON.stringify(reportData, null, 2)
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-    
-    const exportFileDefaultName = `mri-report-${new Date(visit.created_at!).toISOString().split('T')[0]}.json`
-    
-    const linkElement = document.createElement('a')
-    linkElement.setAttribute('href', dataUri)
-    linkElement.setAttribute('download', exportFileDefaultName)
-    linkElement.click()
+  }
+  
+  // Helper function for diagnosis color in PDF
+  const getDiagnosisColor = (stage: string | null) => {
+    switch (stage) {
+      case 'Normal': return '#16a34a' // green
+      case 'Very_Mild_Dementia': return '#ca8a04' // yellow
+      case 'Mild_Dementia': return '#ea580c' // orange
+      case 'Moderate_Dementia': return '#dc2626' // red
+      default: return '#6b7280' // gray
+    }
   }
 
   // Prepare chart data

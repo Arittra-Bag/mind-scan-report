@@ -1,11 +1,11 @@
-
 import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
-import { Upload, X } from 'lucide-react'
+import { Upload, X, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, AlertVariant } from '@/components/ui/alert'
 
 interface MriUploadFormProps {
   patientId: string
@@ -16,10 +16,14 @@ interface MriUploadFormProps {
 const MriUploadForm = ({ patientId, onSuccess, onCancel }: MriUploadFormProps) => {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [notMri, setNotMri] = useState(false)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
+      // Reset state
+      setNotMri(false)
+      
       // Validate file type
       if (!selectedFile.type.startsWith('image/')) {
         toast({
@@ -57,35 +61,92 @@ const MriUploadForm = ({ patientId, onSuccess, onCancel }: MriUploadFormProps) =
     }
 
     setLoading(true)
+    setNotMri(false)
 
     try {
-      // Get the current session
+      // Get the current session for user ID
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
         throw new Error('Not authenticated')
       }
 
-      // Create FormData
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('patientId', patientId)
+      // Call the API directly
+      const apiFormData = new FormData()
+      apiFormData.append('file', file)
 
-      // Call the edge function
-      const { data, error } = await supabase.functions.invoke('process-mri', {
-        body: formData,
+      console.log('Sending request directly to HuggingFace API...')
+      
+      const apiResponse = await fetch('https://arittrabag-mri-h4b.hf.space/detect', {
+        method: 'POST',
+        body: apiFormData,
       })
 
-      if (error) throw error
-
-      if (data.error) {
-        throw new Error(data.error)
+      if (!apiResponse.ok) {
+        throw new Error(`API call failed: ${apiResponse.status}`)
       }
 
-      toast({
-        title: "Success",
-        description: "MRI scan processed successfully!",
-      })
+      const apiResult = await apiResponse.json()
+      console.log('API Response:', apiResult)
+
+      // Process the response based on whether it's an MRI or not
+      const isMRI = apiResult.isMRI === true
+      const predictedClass = isMRI ? apiResult.dementiaAnalysis?.predictedClass : null
+      
+      // Calculate confidence value
+      let confidence = null
+      if (isMRI && apiResult.dementiaAnalysis?.confidences) {
+        const confidenceValues = Object.values(apiResult.dementiaAnalysis.confidences) as number[]
+        confidence = Math.max(...confidenceValues)
+      } else if (!isMRI && typeof apiResult.mriConfidence === 'number') {
+        confidence = apiResult.mriConfidence
+      }
+      
+      // Map the predicted class to match database enum
+      let dbPredictedClass = null
+      if (isMRI && predictedClass) {
+        const mappings = {
+          "Non Demented": "Normal",
+          "Very Mild Dementia": "Very_Mild_Dementia",
+          "Mild Dementia": "Mild_Dementia", 
+          "Moderate Dementia": "Moderate_Dementia"
+        }
+        dbPredictedClass = mappings[predictedClass] || predictedClass.replace(/\s+/g, '_')
+      }
+
+      // Save result to database
+      const { data: visit, error: visitError } = await supabase
+        .from('visits')
+        .insert({
+          patient_id: patientId,
+          raw_report: apiResult,
+          predicted_class: dbPredictedClass,
+          confidence: confidence,
+          insights: isMRI ? apiResult.dementiaAnalysis?.insights : `Not an MRI scan. ${apiResult.message}`,
+          created_by: session.user.id
+        })
+        .select()
+        .single()
+
+      if (visitError) {
+        console.error('Database error:', visitError)
+        throw new Error(`Failed to save visit data: ${visitError.message}`)
+      }
+
+      // Handle UI feedback based on MRI status
+      if (!isMRI) {
+        setNotMri(true)
+        toast({
+          title: "Not a Brain MRI",
+          description: "The uploaded image is not recognized as a brain MRI scan. Record has been saved.",
+          variant: "warning",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "MRI scan processed successfully!",
+        })
+      }
 
       onSuccess()
       
@@ -103,6 +164,17 @@ const MriUploadForm = ({ patientId, onSuccess, onCancel }: MriUploadFormProps) =
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {notMri && (
+        <Alert variant="warning" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Not a Brain MRI</AlertTitle>
+          <AlertDescription>
+            The image you uploaded doesn't appear to be a Brain MRI scan. 
+            Please try uploading a different image.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="space-y-2">
         <Label htmlFor="mri-file">MRI Image File</Label>
         <Input

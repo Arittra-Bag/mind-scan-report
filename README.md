@@ -1,73 +1,47 @@
-# Welcome to your Lovable project
+# Mind Scan Report: BrainTech Extension
 
-## Project info
+## Overview
 
-**URL**: https://lovable.dev/projects/1c091622-d4fa-4bcc-a509-1ed366e1fcf1
+Mind Scan Report is a specialized extension of the BrainTech platform, focused on advanced MRI brain scan analysis for dementia screening and diagnosis. This application leverages AI-powered image analysis to assist healthcare professionals in identifying and classifying cognitive conditions across various stages, from normal cognitive function to moderate dementia.
 
-## How can I edit this code?
+## Key Features
 
-There are several ways of editing your application.
+- **AI-Powered MRI Analysis**: Upload and analyze brain MRI scans with advanced AI models to detect signs of dementia
+- **Multi-Stage Classification**: Identifies and classifies brain scans into Normal, Very Mild Dementia, Mild Dementia, or Moderate Dementia categories
+- **Patient Management**: Complete patient profile management with medical history tracking
+- **Visual Dashboard**: Interactive visualization of patient data and scan history
+- **Professional PDF Reports**: Generate comprehensive medical reports with insights for clinical use
+- **Secure Authentication**: Role-based access control for healthcare professionals
 
-**Use Lovable**
+## Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1c091622-d4fa-4bcc-a509-1ed366e1fcf1) and start prompting.
+This project extends BrainTech using:
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Supabase (PostgreSQL database, authentication, storage)
+- **AI Integration**: HuggingFace API for MRI image analysis
+- **PDF Generation**: jsPDF and html2canvas for professional medical reports
 
-**Use your preferred IDE**
+## Integration with HuggingFace AI
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+The application connects directly to a custom-trained AI model deployed on HuggingFace:
+- Endpoint: `https://arittrabag-mri-h4b.hf.space/detect`
+- Capabilities: MRI validation, dementia stage classification, confidence scoring, and personalized insights
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Using the MRI Analysis Feature
 
-Follow these steps:
+1. Create a patient profile
+2. Upload an MRI scan image
+3. The system will analyze the image and provide classification results
+4. Download a professional PDF report for your medical records
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Data Structure
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+The application uses the following key database tables:
+- `patients`: Patient information and demographics
+- `visits`: MRI scan analysis results and insights
+- `profiles`: Healthcare professional accounts and roles
 
-# Step 3: Install the necessary dependencies.
-npm i
+## License
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/1c091622-d4fa-4bcc-a509-1ed366e1fcf1) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+© 2025 BrainTech Extensions. All Rights Reserved.
