@@ -26,6 +26,25 @@ const StageDistributionChart = ({ data }: StageDistributionProps) => {
     color: COLORS[item.stage as keyof typeof COLORS] || '#6B7280'
   }))
 
+  const renderCustomLegend = (props: any) => {
+    const { payload } = props;
+    return (
+      <div className="flex flex-wrap justify-center gap-4 mt-4">
+        {payload.map((entry: any, index: number) => (
+          <div key={`legend-${index}`} className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-sm" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-sm text-gray-700 font-medium">
+              {entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
       <CardHeader>
@@ -35,15 +54,14 @@ const StageDistributionChart = ({ data }: StageDistributionProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
-              cy="50%"
+              cy="45%"
               outerRadius={80}
               dataKey="value"
-              label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -58,6 +76,7 @@ const StageDistributionChart = ({ data }: StageDistributionProps) => {
                 backdropFilter: 'blur(10px)'
               }}
             />
+            <Legend content={renderCustomLegend} />
           </PieChart>
         </ResponsiveContainer>
       </CardContent>
