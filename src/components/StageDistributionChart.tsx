@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { Activity } from 'lucide-react'
@@ -12,38 +11,33 @@ interface StageDistributionProps {
 }
 
 const COLORS = {
-  'Normal': '#10B981',
-  'Very_Mild_Dementia': '#F59E0B', 
-  'Mild_Dementia': '#F97316',
-  'Moderate_Dementia': '#EF4444'
-}
+  Normal: '#10B981',
+  Very_Mild_Dementia: '#F59E0B',
+  Mild_Dementia: '#F97316',
+  Moderate_Dementia: '#EF4444',
+} as const
 
 const StageDistributionChart = ({ data }: StageDistributionProps) => {
-  const chartData = data.map(item => ({
+  const chartData = data.map((item) => ({
     name: item.stage.replace(/_/g, ' '),
     value: item.count,
     percentage: item.percentage,
-    color: COLORS[item.stage as keyof typeof COLORS] || '#6B7280'
+    color: (COLORS as any)[item.stage] || '#6B7280',
   }))
 
   const renderCustomLegend = (props: any) => {
-    const { payload } = props;
+    const { payload } = props
     return (
       <div className="flex flex-wrap justify-center gap-4 mt-4">
         {payload.map((entry: any, index: number) => (
           <div key={`legend-${index}`} className="flex items-center gap-2">
-            <div 
-              className="w-3 h-3 rounded-sm" 
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-sm text-gray-700 font-medium">
-              {entry.value}
-            </span>
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
+            <span className="text-sm text-gray-700 font-medium">{entry.value}</span>
           </div>
         ))}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
@@ -56,24 +50,18 @@ const StageDistributionChart = ({ data }: StageDistributionProps) => {
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="45%"
-              outerRadius={80}
-              dataKey="value"
-            >
+            <Pie data={chartData} cx="50%" cy="45%" outerRadius={80} dataKey="value">
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               formatter={(value: any, name: any) => [`${value} scans`, name]}
               contentStyle={{
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 border: '1px solid #e2e8f0',
                 borderRadius: '8px',
-                backdropFilter: 'blur(10px)'
+                backdropFilter: 'blur(10px)',
               }}
             />
             <Legend content={renderCustomLegend} />

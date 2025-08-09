@@ -11,6 +11,9 @@ import { Tables } from '@/integrations/supabase/types'
 import MriUploadForm from '@/components/MriUploadForm'
 import AnimatedMetricCard from '@/components/AnimatedMetricCard'
 import TrendChart from '@/components/TrendChart'
+import InsightsPanel from '@/components/InsightsPanel'
+import StageGuidance from '@/components/StageGuidance'
+import ResearchExport from '@/components/ResearchExport'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -80,38 +83,213 @@ const PatientProfile = () => {
     return stage.replace(/_/g, ' ')
   }
 
-  const downloadJSON = (visit: Visit) => {
-    const reportData = {
-      patient: {
-        name: patient?.name,
-        dateOfBirth: patient?.date_of_birth,
-        medicalRecordNumber: patient?.medical_record_number
-      },
-      scan: {
-        date: visit.created_at,
-        predictedClass: visit.predicted_class,
-        confidence: visit.confidence,
-        insights: visit.insights
-      },
-      metadata: {
-        visitId: visit.id,
-        generatedAt: new Date().toISOString()
+  const downloadPDF = async (visit: Visit) => {
+    try {
+      // Prefer ConvertAPI Template → PDF if configured
+      const CONVERTAPI_TOKEN = import.meta.env.VITE_CONVERTAPI_TOKEN || 'dJm4aDVUZ43brLbyl35TEkipglExr83E'
+      const TEMPLATE_URL = import.meta.env.VITE_CONVERTAPI_TEMPLATE_URL // public URL to a .docx template with placeholders
+
+      if (CONVERTAPI_TOKEN && TEMPLATE_URL) {
+        try {
+          const scanDate = new Date(visit.created_at!).toLocaleDateString()
+          const confidencePercent = visit.confidence ? (visit.confidence * 100).toFixed(1) + '%' : 'N/A'
+          const dementiaClass = formatStage(visit.predicted_class)
+
+          const payload = {
+            patient: {
+              name: patient!.name,
+              date_of_birth: new Date(patient!.date_of_birth).toLocaleDateString(),
+              medical_record_number: patient!.medical_record_number || '',
+            },
+            scan: {
+              date: scanDate,
+              diagnosis: dementiaClass,
+              confidence: confidencePercent,
+            },
+            insights: visit.insights || '',
+          }
+
+          const formData = new FormData()
+          formData.append('File', TEMPLATE_URL)
+          formData.append('JsonPayload', JSON.stringify(payload))
+          formData.append('StoreFile', 'true')
+          formData.append('BindingMethod', 'placeholders')
+
+          const res = await fetch('https://v2.convertapi.com/convert/template/to/pdf', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${CONVERTAPI_TOKEN}` },
+            body: formData,
+          })
+
+          if (!res.ok) throw new Error(`ConvertAPI failed: ${res.status}`)
+          const data = await res.json()
+          const fileUrl: string | undefined = data?.Files?.[0]?.Url || data?.File?.Url || data?.Url
+          const fileName: string = data?.Files?.[0]?.FileName || `mri-report-${patient!.name.replace(/\s+/g, '-')}-${new Date(visit.created_at!).toISOString().split('T')[0]}.pdf`
+          if (!fileUrl) throw new Error('ConvertAPI response missing file URL')
+
+          const pdfResp = await fetch(fileUrl)
+          if (!pdfResp.ok) throw new Error(`Failed to fetch generated PDF: ${pdfResp.status}`)
+          const blob = await pdfResp.blob()
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+          URL.revokeObjectURL(url)
+
+          toast({ title: 'Success', description: 'Report downloaded successfully' })
+          return
+        } catch (err) {
+          console.warn('ConvertAPI failed, falling back to local PDF generation:', err)
+        }
       }
+
+      // Second attempt: ConvertAPI HTML → PDF using generated HTML (no template needed)
+      if (CONVERTAPI_TOKEN) {
+        try {
+          const scanDate = new Date(visit.created_at!).toLocaleDateString()
+          const confidencePercent = visit.confidence ? (visit.confidence * 100).toFixed(1) + '%' : 'N/A'
+          const dementialClass = formatStage(visit.predicted_class)
+
+          const html = `
+            <html><head><meta charset="utf-8" /><style>
+              body{font-family:Arial, sans-serif; padding:20px}
+              .section{margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee}
+              .center{text-align:center}
+              .insights{white-space:pre-wrap; padding:10px; background-color:#f9f9f9; border-radius:5px; font-size:0.9em}
+            </style></head><body>
+              <div class="center">
+                <h1 style="margin-bottom:5px;">Mind Scan Report</h1>
+                <h2 style="margin-top:0; color:#555; font-weight:normal;">MRI Analysis Results</h2>
+              </div>
+              <div class="section">
+                <h3 style="margin-bottom:10px;">Patient Information</h3>
+                <p><strong>Name:</strong> ${patient!.name}</p>
+                <p><strong>DOB:</strong> ${new Date(patient!.date_of_birth).toLocaleDateString()}</p>
+                ${patient!.medical_record_number ? `<p><strong>MRN:</strong> ${patient!.medical_record_number}</p>` : ''}
+              </div>
+              <div class="section">
+                <h3 style="margin-bottom:10px;">Scan Details</h3>
+                <p><strong>Scan Date:</strong> ${scanDate}</p>
+                <p><strong>Diagnosis:</strong> ${dementialClass}</p>
+                <p><strong>Confidence:</strong> ${confidencePercent}</p>
+              </div>
+              ${visit.insights ? `<div class="section"><h3 style="margin-bottom:10px;">Analysis Insights</h3><div class="insights">${visit.insights.replace(/\n/g, '<br>')}</div></div>` : ''}
+              <div style="margin-top:30px; text-align:center; font-size:0.8em; color:#777;">
+                <p>This report was generated on ${new Date().toLocaleString()}.</p>
+                <p>Mind Scan Analysis Platform. All rights reserved.</p>
+              </div>
+            </body></html>
+          `
+
+          const formData = new FormData()
+          const htmlBlob = new Blob([html], { type: 'text/html' })
+          formData.append('File', htmlBlob, 'report.html')
+          formData.append('StoreFile', 'true')
+
+          const res = await fetch('https://v2.convertapi.com/convert/html/to/pdf', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${CONVERTAPI_TOKEN}` },
+            body: formData,
+          })
+
+          if (!res.ok) throw new Error(`ConvertAPI HTML->PDF failed: ${res.status}`)
+          const data = await res.json()
+          const fileUrl: string | undefined = data?.Files?.[0]?.Url || data?.File?.Url || data?.Url
+          const fileName: string = data?.Files?.[0]?.FileName || `mri-report-${patient!.name.replace(/\s+/g, '-')}-${new Date(visit.created_at!).toISOString().split('T')[0]}.pdf`
+          if (!fileUrl) throw new Error('ConvertAPI HTML->PDF response missing file URL')
+
+          const pdfResp = await fetch(fileUrl)
+          if (!pdfResp.ok) throw new Error(`Failed to fetch generated PDF: ${pdfResp.status}`)
+          const blob = await pdfResp.blob()
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+          URL.revokeObjectURL(url)
+
+          toast({ title: 'Success', description: 'Report downloaded successfully' })
+          return
+        } catch (err) {
+          console.warn('ConvertAPI HTML path failed, falling back to local PDF generation:', err)
+        }
+      }
+
+      // Fallback: generate PDF from HTML locally
+      const reportContainer = document.createElement('div')
+      reportContainer.style.padding = '20px'
+      reportContainer.style.fontFamily = 'Arial, sans-serif'
+      reportContainer.style.position = 'absolute'
+      reportContainer.style.left = '-9999px'
+      reportContainer.style.top = '-9999px'
+      reportContainer.style.width = '550px'
+      document.body.appendChild(reportContainer)
+
+      const scanDate = new Date(visit.created_at!).toLocaleDateString()
+      const confidencePercent = visit.confidence ? (visit.confidence * 100).toFixed(1) + '%' : 'N/A'
+      const dementialClass = formatStage(visit.predicted_class)
+
+      reportContainer.innerHTML = `
+        <div style="text-align:center; margin-bottom:20px;">
+          <h1 style="margin-bottom:5px;">Mind Scan Report</h1>
+          <h2 style="margin-top:0; color:#555; font-weight:normal;">MRI Analysis Results</h2>
+        </div>
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+          <h3 style="margin-bottom:10px;">Patient Information</h3>
+          <p><strong>Name:</strong> ${patient!.name}</p>
+          <p><strong>DOB:</strong> ${new Date(patient!.date_of_birth).toLocaleDateString()}</p>
+          ${patient!.medical_record_number ? `<p><strong>MRN:</strong> ${patient!.medical_record_number}</p>` : ''}
+        </div>
+        <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid #eee;">
+          <h3 style="margin-bottom:10px;">Scan Details</h3>
+          <p><strong>Scan Date:</strong> ${scanDate}</p>
+          <p><strong>Diagnosis:</strong> ${dementialClass}</p>
+          <p><strong>Confidence:</strong> ${confidencePercent}</p>
+        </div>
+        ${visit.insights ? `
+        <div style="margin-bottom:20px;">
+          <h3 style="margin-bottom:10px;">Analysis Insights</h3>
+          <div style="white-space:pre-wrap; padding:10px; background-color:#f9f9f9; border-radius:5px; font-size:0.9em;">
+            ${visit.insights.replace(/\n/g, '<br>')}
+          </div>
+        </div>` : ''}
+        <div style="margin-top:30px; text-align:center; font-size:0.8em; color:#777;">
+          <p>This report was generated on ${new Date().toLocaleString()}.</p>
+          <p>Mind Scan Analysis Platform. All rights reserved.</p>
+        </div>
+      `
+
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const canvas = await html2canvas(reportContainer, { scale: 2, logging: false, useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      const imgProps = pdf.getImageProperties(imgData)
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+      if (pdfHeight > 297) {
+        let remainingHeight = pdfHeight
+        let position = -297
+        while (remainingHeight > 0) {
+          pdf.addPage()
+          position -= 297
+          pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight)
+          remainingHeight -= 297
+        }
+      }
+      const filename = `mri-report-${patient!.name.replace(/\s+/g, '-')}-${new Date(visit.created_at!).toISOString().split('T')[0]}.pdf`
+      pdf.save(filename)
+      document.body.removeChild(reportContainer)
+
+      toast({ title: 'Success', description: 'Report downloaded successfully' })
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast({ title: 'Error', description: 'Failed to generate PDF report', variant: 'destructive' })
     }
-
-    const dataStr = JSON.stringify(reportData, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `mri-report-${patient?.name.replace(/\s+/g, '-')}-${new Date(visit.created_at!).toISOString().split('T')[0]}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-
-    toast({
-      title: "Success",
-      description: "Report downloaded successfully",
-    })
   }
 
   // Business metrics calculations
@@ -292,15 +470,20 @@ const PatientProfile = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <TrendChart 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+          {/* Insights Panel with subtle parallax */}
+          <div className="lg:col-span-2 will-change-transform transform-gpu hover:translate-y-[-2px] transition-transform duration-500">
+            <InsightsPanel visits={visits} patientName={patient.name} />
+          </div>
+
+          <TrendChart
             data={chartData}
             title="Confidence Trend"
             description="Analysis confidence over time"
             gradient={true}
           />
 
-          <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
+          <Card className="hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30 hover:translate-y-[-4px]">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Activity className="h-5 w-5 mr-2 text-green-500" />
@@ -347,8 +530,18 @@ const PatientProfile = () => {
           </Card>
         </div>
 
+        {/* Stage-Specific Guidance with animation */}
+        <div className="mb-10 animate-in fade-in slide-in-from-bottom-2 duration-700">
+          <StageGuidance latestVisit={visits[0] || null} patientName={patient.name} />
+        </div>
+
+        {/* Research & Export */}
+        <div className="mb-6">
+          <ResearchExport visits={visits} />
+        </div>
+
         {/* Enhanced Visit History */}
-        <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
+        <Card className="hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30 hover:translate-y-[-3px]">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calendar className="h-5 w-5 mr-2" />
@@ -397,11 +590,11 @@ const PatientProfile = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => downloadJSON(visit)}
+                      onClick={() => downloadPDF(visit)}
                       className="flex items-center space-x-2 hover:scale-105 transition-all duration-200"
                     >
                       <Download className="h-4 w-4" />
-                      <span>Download</span>
+                      <span>Download PDF</span>
                     </Button>
                   </div>
                 ))}

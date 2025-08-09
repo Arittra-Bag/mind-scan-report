@@ -114,6 +114,62 @@ const MriUploadForm = ({ patientId, onSuccess, onCancel }: MriUploadFormProps) =
         dbPredictedClass = mappings[predictedClass] || predictedClass.replace(/\s+/g, '_')
       }
 
+      // Try to persist images to Supabase Storage and capture public URLs
+      const extractBase64 = (report: any): { original?: string; annotated?: string } => {
+        const original = report?.imageBase64 || report?.image_base64 || report?.dementiaAnalysis?.imageBase64
+        const annotated = report?.dementiaAnalysis?.annotatedImageBase64 || report?.dementiaAnalysis?.annotated_image_base64
+        return { original, annotated }
+      }
+      const { original, annotated } = extractBase64(apiResult)
+
+      const bucket = 'mri-images'
+      let imageUrl: string | null = null
+      let annotatedImageUrl: string | null = null
+      try {
+        const uploadFromBase64 = async (b64: string, path: string): Promise<string> => {
+          const binary = atob(b64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+          const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
+            contentType: 'image/png',
+            upsert: true,
+          })
+          if (error) throw error
+          const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
+          return pub.publicUrl
+        }
+        const baseKey = `${patientId}/${Date.now()}`
+
+        // Always upload the originally selected file so we have a reliable URL
+        try {
+          const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+          const originalPath = `${baseKey}/original.${ext}`
+          const { error: fileUploadError } = await supabase.storage
+            .from(bucket)
+            .upload(originalPath, file, {
+              contentType: file.type || `image/${ext}`,
+              upsert: true,
+            })
+          if (!fileUploadError) {
+            const { data: pub } = supabase.storage.from(bucket).getPublicUrl(originalPath)
+            imageUrl = pub.publicUrl
+          }
+        } catch (e) {
+          console.warn('Original file upload failed:', e)
+        }
+
+        if (original && typeof original === 'string' && original.length > 100) {
+          imageUrl = await uploadFromBase64(original, `${baseKey}/original.png`)
+        }
+        if (annotated && typeof annotated === 'string' && annotated.length > 100) {
+          annotatedImageUrl = await uploadFromBase64(annotated, `${baseKey}/annotated.png`)
+        } else if (apiResult?.dementiaAnalysis?.annotatedImageUrl && typeof apiResult.dementiaAnalysis.annotatedImageUrl === 'string') {
+          annotatedImageUrl = apiResult.dementiaAnalysis.annotatedImageUrl
+        }
+      } catch (e) {
+        console.warn('Supabase Storage upload failed or skipped:', e)
+      }
+
       // Save result to database
       const { data: visit, error: visitError } = await supabase
         .from('visits')
@@ -123,7 +179,9 @@ const MriUploadForm = ({ patientId, onSuccess, onCancel }: MriUploadFormProps) =
           predicted_class: dbPredictedClass,
           confidence: confidence,
           insights: isMRI ? apiResult.dementiaAnalysis?.insights : `Not an MRI scan. ${apiResult.message}`,
-          created_by: session.user.id
+          created_by: session.user.id,
+          image_url: imageUrl,
+          annotated_image_url: annotatedImageUrl,
         })
         .select()
         .single()
