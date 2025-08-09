@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
@@ -7,7 +8,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from '@/hooks/use-toast'
 import { ArrowLeft } from 'lucide-react'
-import ThemeToggle from '@/components/ThemeToggle'
 
 const NewPatient = () => {
   const navigate = useNavigate()
@@ -57,34 +57,31 @@ const NewPatient = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-500">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/')}
-              className="dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <ThemeToggle />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add New Patient</h1>
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-3xl font-bold text-gray-900">Add New Patient</h1>
         </div>
 
-        <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        <Card>
           <CardHeader>
-            <CardTitle className="dark:text-white">Patient Information</CardTitle>
-            <CardDescription className="dark:text-gray-400">
+            <CardTitle>Patient Information</CardTitle>
+            <CardDescription>
               Enter the patient's basic information to create their profile
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name" className="dark:text-gray-300">Full Name *</Label>
+                <Label htmlFor="name">Full Name *</Label>
                 <Input
                   id="name"
                   type="text"
@@ -92,31 +89,28 @@ const NewPatient = () => {
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   required
                   placeholder="Enter patient's full name"
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="dateOfBirth" className="dark:text-gray-300">Date of Birth *</Label>
+                <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                 <Input
                   id="dateOfBirth"
                   type="date"
                   value={formData.dateOfBirth}
                   onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                   required
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="medicalRecordNumber" className="dark:text-gray-300">Medical Record Number</Label>
+                <Label htmlFor="medicalRecordNumber">Medical Record Number</Label>
                 <Input
                   id="medicalRecordNumber"
                   type="text"
                   value={formData.medicalRecordNumber}
                   onChange={(e) => handleInputChange('medicalRecordNumber', e.target.value)}
                   placeholder="Optional medical record number"
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                 />
               </div>
 
@@ -125,14 +119,14 @@ const NewPatient = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate('/')}
-                  className="flex-1 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  className="flex-1"
                 >
                   {loading ? 'Creating...' : 'Create Patient'}
                 </Button>

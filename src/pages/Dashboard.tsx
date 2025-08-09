@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/integrations/supabase/client'
@@ -10,7 +11,6 @@ import AnimatedMetricCard from '@/components/AnimatedMetricCard'
 import TrendChart from '@/components/TrendChart'
 import StageDistributionChart from '@/components/StageDistributionChart'
 import { toast } from '@/hooks/use-toast'
-import ThemeToggle from '@/components/ThemeToggle'
 
 type Patient = Tables<'patients'>
 type Visit = Tables<'visits'>
@@ -159,9 +159,9 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-blue-900 transition-all duration-500">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Animated header with parallax effect */}
-      <div className="relative bg-gradient-to-r from-white/90 via-white/80 to-white/90 dark:from-gray-900/90 dark:via-gray-800/80 dark:to-gray-900/90 backdrop-blur-md shadow-lg border-b border-white/20 dark:border-gray-700/20">
+      <div className="relative bg-gradient-to-r from-white/90 via-white/80 to-white/90 backdrop-blur-md shadow-lg border-b border-white/20">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/5 to-pink-600/10 animate-pulse"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -169,25 +169,24 @@ const Dashboard = () => {
               <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
                 MRI Analysis Dashboard
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <ThemeToggle />
               <Button 
                 variant="outline" 
                 onClick={exportCSV}
-                className="hover:scale-105 transition-transform duration-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                className="hover:scale-105 transition-transform duration-200"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export Data
               </Button>
-              <span className="text-gray-600 dark:text-gray-300">Welcome, {user?.email}</span>
+              <span className="text-gray-600">Welcome, {user?.email}</span>
               <Button 
                 variant="outline" 
                 onClick={signOut}
-                className="hover:scale-105 transition-transform duration-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                className="hover:scale-105 transition-transform duration-200"
               >
                 Sign Out
               </Button>
@@ -258,26 +257,26 @@ const Dashboard = () => {
 
         {/* Enhanced Recent Data Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 dark:from-gray-900/90 dark:to-gray-800/70 backdrop-blur-sm border-white/30 dark:border-gray-700/30">
+          <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
             <CardHeader>
-              <CardTitle className="flex items-center dark:text-white">
+              <CardTitle className="flex items-center">
                 <Users className="h-5 w-5 mr-2 text-blue-500" />
                 Recent Patients
               </CardTitle>
-              <CardDescription className="dark:text-gray-400">Recently added patients</CardDescription>
+              <CardDescription>Recently added patients</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {patients.slice(0, 5).length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <Users className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>No patients found</p>
                   </div>
                 ) : (
                   patients.slice(0, 5).map((patient, index) => (
                     <div 
                       key={patient.id} 
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700 transition-all duration-300 hover:scale-105 animate-fade-in"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-all duration-300 hover:scale-105 animate-fade-in"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
                       <div className="flex items-center space-x-4">
@@ -285,8 +284,8 @@ const Dashboard = () => {
                           {patient.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-medium dark:text-white">{patient.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="font-medium">{patient.name}</p>
+                          <p className="text-sm text-gray-500">
                             DOB: {new Date(patient.date_of_birth).toLocaleDateString()}
                           </p>
                         </div>
@@ -295,7 +294,7 @@ const Dashboard = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(`/patients/${patient.id}`)}
-                        className="hover:scale-105 transition-transform duration-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                        className="hover:scale-105 transition-transform duration-200"
                       >
                         View
                       </Button>
@@ -306,26 +305,26 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 dark:from-gray-900/90 dark:to-gray-800/70 backdrop-blur-sm border-white/30 dark:border-gray-700/30">
+          <Card className="hover:shadow-xl transition-all duration-500 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm border-white/30">
             <CardHeader>
-              <CardTitle className="flex items-center dark:text-white">
+              <CardTitle className="flex items-center">
                 <FileText className="h-5 w-5 mr-2 text-green-500" />
                 Recent Scans
               </CardTitle>
-              <CardDescription className="dark:text-gray-400">Latest MRI scan results</CardDescription>
+              <CardDescription>Latest MRI scan results</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {recentVisits.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>No scans found</p>
                   </div>
                 ) : (
                   recentVisits.map((visit, index) => (
                     <div 
                       key={visit.id} 
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700 transition-all duration-300 hover:scale-105 animate-fade-in"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-all duration-300 hover:scale-105 animate-fade-in"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
                       <div className="flex items-center space-x-4">
@@ -333,12 +332,12 @@ const Dashboard = () => {
                           <FileText className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <p className="font-medium dark:text-white">{visit.patient?.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="font-medium">{visit.patient?.name}</p>
+                          <p className="text-sm text-gray-500">
                             {visit.predicted_class?.replace(/_/g, ' ') || 'Processing...'} 
                             {visit.confidence && ` (${(visit.confidence * 100).toFixed(1)}%)`}
                           </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                          <p className="text-xs text-gray-400">
                             {new Date(visit.created_at!).toLocaleDateString()}
                           </p>
                         </div>
@@ -347,7 +346,7 @@ const Dashboard = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate(`/patients/${visit.patient_id}`)}
-                        className="hover:scale-105 transition-transform duration-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                        className="hover:scale-105 transition-transform duration-200"
                       >
                         View
                       </Button>
