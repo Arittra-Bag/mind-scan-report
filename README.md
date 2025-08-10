@@ -1,4 +1,7 @@
-# Mind Scan Report: BrainTech Extension
+# Mind Scan Report: Dementia Dreamscape Extension
+```
+Under the Wing of BrainTechAI
+```
 
 ## Overview
 
